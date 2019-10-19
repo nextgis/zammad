@@ -11,6 +11,7 @@ class Oauth2Database < OmniAuth::Strategies::OAuth2
     super
   end
   
+  # Add from https://github.com/zammad/zammad/issues/775
   def callback_url
     full_host + script_name + callback_path
   end
