@@ -6,7 +6,6 @@ require 'models/concerns/has_roles_examples'
 require 'models/concerns/has_groups_permissions_examples'
 require 'models/concerns/has_xss_sanitized_note_examples'
 require 'models/concerns/can_be_imported_examples'
-require 'models/concerns/can_lookup_examples'
 require 'models/concerns/has_object_manager_attributes_validation_examples'
 
 RSpec.describe User, type: :model do
@@ -23,7 +22,6 @@ RSpec.describe User, type: :model do
   it_behaves_like 'HasXssSanitizedNote', model_factory: :user
   it_behaves_like 'HasGroups and Permissions', group_access_no_permission_factory: :user
   it_behaves_like 'CanBeImported'
-  it_behaves_like 'CanLookup'
   it_behaves_like 'HasObjectManagerAttributesValidation'
 
   describe 'Class methods:' do
@@ -177,11 +175,11 @@ RSpec.describe User, type: :model do
 
     describe '.identify' do
       it 'returns users by given login' do
-        expect(User.identify(user.login)).to eq(user)
+        expect(described_class.identify(user.login)).to eq(user)
       end
 
       it 'returns users by given email' do
-        expect(User.identify(user.email)).to eq(user)
+        expect(described_class.identify(user.email)).to eq(user)
       end
     end
   end
@@ -716,7 +714,7 @@ RSpec.describe User, type: :model do
 
     describe '#out_of_office_replacement_id' do
       it 'cannot be set to invalid user ID' do
-        expect { agent.update(out_of_office_replacement_id: User.pluck(:id).max.next) }
+        expect { agent.update(out_of_office_replacement_id: described_class.pluck(:id).max.next) }
           .to raise_error(ActiveRecord::InvalidForeignKey)
       end
 
@@ -980,7 +978,7 @@ RSpec.describe User, type: :model do
     describe 'System-wide agent limit checks:' do
       let(:agent_role) { Role.lookup(name: 'Agent') }
       let(:admin_role) { Role.lookup(name: 'Admin') }
-      let(:current_agents) { User.with_permissions('ticket.agent') }
+      let(:current_agents) { described_class.with_permissions('ticket.agent') }
 
       describe '#validate_agent_limit_by_role' do
         context 'for Integer value of system_agent_limit' do

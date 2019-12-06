@@ -168,7 +168,7 @@ class App.TicketZoomArticleNew extends App.Controller
     @$('[data-name="body"]').ce({
       mode:      'richtext'
       multiline: true
-      maxlength: 50000
+      maxlength: 150000
     })
 
     html5Upload.initialize(
@@ -278,7 +278,7 @@ class App.TicketZoomArticleNew extends App.Controller
       if config && config.params
         params = config.params(params.type, params, @)
 
-    # add initals?
+    # add initials?
     for articleType in @articleTypes
       if articleType.name is @type
         if _.contains(articleType.features, 'body:initials')

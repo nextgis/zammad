@@ -18,6 +18,9 @@ class KnowledgeBase::Answer < ApplicationModel
 
   validates :category, presence: true
 
+  # provide consistent naming with KB category
+  alias_attribute :parent, :category
+
   alias assets_essential assets
 
   def attributes_with_association_ids
@@ -67,7 +70,7 @@ class KnowledgeBase::Answer < ApplicationModel
   def reordering_callback
     return if !category_id_changed? && !position_changed?
 
-    # drop siblings cache to make sure orderign is always up to date
+    # drop siblings cache to make sure ordering is always up to date
     category.answers.each(&:cache_delete)
   end
   before_save :reordering_callback

@@ -57,7 +57,7 @@ class ChannelsTelegramController < ApplicationController
   end
 
   def webhook
-    raise Exceptions::UnprocessableEntity, 'bot param missing' if params['bid'].blank?
+    raise Exceptions::UnprocessableEntity, 'bot id is missing' if params['bid'].blank?
 
     channel = Telegram.bot_by_bot_id(params['bid'])
     raise Exceptions::UnprocessableEntity, 'bot not found' if !channel
@@ -67,7 +67,11 @@ class ChannelsTelegramController < ApplicationController
     end
 
     telegram = Telegram.new(channel.options[:api_token])
-    telegram.to_group(params, channel.group_id, channel)
+    begin
+      telegram.to_group(params, channel.group_id, channel)
+    rescue Exceptions::UnprocessableEntity => e
+      Rails.logger.error e.message
+    end
 
     render json: {}, status: :ok
   end

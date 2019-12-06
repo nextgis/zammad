@@ -61,5 +61,6 @@ RSpec.describe 'Time Accounting API endpoints', type: :request do
         expect(response['Content-Type']).to eq('application/vnd.ms-excel')
       end
     end
+
   end
 end

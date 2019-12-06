@@ -13,7 +13,7 @@ gem 'json'
 gem 'rails-observers'
 
 # core - application servers
-gem 'puma', group: :puma
+gem 'puma', '~>3.12', group: :puma
 gem 'unicorn', group: :unicorn
 
 # core - supported ORMs
@@ -74,6 +74,7 @@ gem 'omniauth-google-oauth2'
 gem 'omniauth-linkedin-oauth2'
 gem 'omniauth-microsoft-office365'
 gem 'omniauth-oauth2'
+gem 'omniauth-saml'
 gem 'omniauth-twitter'
 gem 'omniauth-weibo-oauth2'
 
@@ -150,9 +151,6 @@ group :development, :test do
   gem 'shoulda-matchers'
   gem 'test-unit'
 
-  # test DB
-  gem 'sqlite3'
-
   # code coverage
   gem 'coveralls', require: false
   gem 'simplecov'
@@ -176,6 +174,7 @@ group :development, :test do
   gem 'pre-commit'
   gem 'rubocop'
   gem 'rubocop-performance'
+  gem 'rubocop-rails'
   gem 'rubocop-rspec'
 
   # changelog generation
@@ -191,6 +190,9 @@ group :development, :test do
   # record and replay TCP/HTTP transactions
   gem 'tcr', git: 'https://github.com/zammad-deps/tcr'
   gem 'vcr'
+
+  # handle deprecations in core and addons
+  gem 'deprecation_toolkit'
 end
 
 # Want to extend Zammad with additional gems?

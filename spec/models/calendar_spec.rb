@@ -5,14 +5,14 @@ RSpec.describe Calendar, type: :model do
 
   describe 'attributes' do
     describe '#default' do
-      before { expect(Calendar.pluck(:default)).to eq([true]) }
+      before { expect(described_class.pluck(:default)).to eq([true]) }
 
       context 'when set to true on creation' do
         subject(:calendar) { build(:calendar, default: true) }
 
         it 'stays true and sets all other calendars to default: false' do
           expect { calendar.tap(&:save).reload }.not_to change(calendar, :default)
-          expect(Calendar.where(default: true) - [calendar]).to be_empty
+          expect(described_class.where(default: true) - [calendar]).to be_empty
         end
       end
 
@@ -23,14 +23,14 @@ RSpec.describe Calendar, type: :model do
 
         it 'stays true and sets all other calendars to default: false' do
           expect { calendar.tap(&:save).reload }.not_to change(calendar, :default)
-          expect(Calendar.where(default: true) - [calendar]).to be_empty
+          expect(described_class.where(default: true) - [calendar]).to be_empty
         end
       end
 
       context 'when set to false on update' do
         it 'sets default: true on earliest-created calendar' do
-          expect { Calendar.first.update(default: false) }
-            .not_to change { Calendar.first.default }
+          expect { described_class.first.update(default: false) }
+            .not_to change { described_class.first.default }
         end
       end
 
@@ -38,7 +38,7 @@ RSpec.describe Calendar, type: :model do
         subject!(:calendar) { create(:calendar, default: false) }
 
         it 'sets default: true on earliest-created remaining calendar' do
-          expect { Calendar.first.destroy }
+          expect { described_class.first.destroy }
             .to change { calendar.reload.default }.to(true)
         end
       end
@@ -129,9 +129,10 @@ RSpec.describe Calendar, type: :model do
         end
       end
 
-      context 'and current date has changed (past cache expiry)' do
+      context 'and current date has changed (past cache expiry)', performs_jobs: true do
         before do
           calendar  # create and sync
+          clear_jobs # clear (speak: process) created jobs
           travel 1.year
         end
 
@@ -146,7 +147,7 @@ RSpec.describe Calendar, type: :model do
         end
 
         it 'does create a background job for escalation rebuild' do
-          expect { calendar.sync }.to change { Delayed::Job.count }.by(1)
+          expect { calendar.sync }.to have_enqueued_job(SlaTicketRebuildEscalationJob)
         end
       end
 

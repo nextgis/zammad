@@ -440,7 +440,7 @@ returns
       files.push entry
     end
     files.sort.each do |entry|
-      next if entry !~ /^send/
+      next if !entry.match?(/^send/)
 
       message = Sessions.queue_file_read(path, entry)
       next if !message
@@ -519,6 +519,7 @@ get spool messages
   def self.spool_list(timestamp, current_user_id)
     path = "#{@path}/spool/"
     FileUtils.mkpath path
+
     data      = []
     to_delete = []
     files     = []

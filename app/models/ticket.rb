@@ -30,7 +30,7 @@ class Ticket < ApplicationModel
 
   activity_stream_permission 'ticket.agent'
 
-  activity_stream_attributes_ignored :organization_id, # organization_id will channge automatically on user update
+  activity_stream_attributes_ignored :organization_id, # organization_id will change automatically on user update
                                      :create_article_type_id,
                                      :create_article_sender_id,
                                      :article_count,
@@ -127,7 +127,7 @@ returns
       tickets = where(state_id: next_state_map.keys)
                 .where('pending_time <= ?', Time.zone.now)
 
-      tickets.each do |ticket|
+      tickets.find_each(batch_size: 500) do |ticket|
         Transaction.execute do
           ticket.state_id      = next_state_map[ticket.state_id]
           ticket.updated_at    = Time.zone.now
@@ -151,7 +151,7 @@ returns
       tickets = where(state_id: reminder_state_map.keys)
                 .where('pending_time <= ?', Time.zone.now)
 
-      tickets.each do |ticket|
+      tickets.find_each(batch_size: 500) do |ticket|
 
         article_id = nil
         article = Ticket::Article.last_customer_agent_article(ticket.id)
@@ -190,14 +190,8 @@ returns
   def self.process_escalation
     result = []
 
-    # get max warning diff
-
-    tickets = where('escalation_at <= ?', Time.zone.now + 15.minutes)
-
-    tickets.each do |ticket|
-
-      # get sla
-      ticket.escalation_calculation_get_sla
+    # fetch all escalated and soon to be escalating tickets
+    where('escalation_at <= ?', Time.zone.now + 15.minutes).find_each(batch_size: 500) do |ticket|
 
       article_id = nil
       article = Ticket::Article.last_customer_agent_article(ticket.id)
@@ -568,7 +562,7 @@ condition example
 
       selector = selector_raw.stringify_keys
       raise "Invalid selector, operator missing #{selector.inspect}" if !selector['operator']
-      raise "Invalid selector, operator #{selector['operator']} is invalid #{selector.inspect}" if selector['operator'] !~ /^(is|is\snot|contains|contains\s(not|all|one|all\snot|one\snot)|(after|before)\s\(absolute\)|(within\snext|within\slast|after|before)\s\(relative\))$/
+      raise "Invalid selector, operator #{selector['operator']} is invalid #{selector.inspect}" if !selector['operator'].match?(/^(is|is\snot|contains|contains\s(not|all|one|all\snot|one\snot)|(after|before)\s\(absolute\)|(within\snext|within\slast|after|before)\s\(relative\))$/)
 
       # validate value / allow blank but only if pre_condition exists and is not specific
       if !selector.key?('value') ||
@@ -1195,11 +1189,11 @@ result
 
 get all articles of a ticket in correct order (overwrite active record default method)
 
-  artilces = ticket.articles
+  articles = ticket.articles
 
 result
 
-  [article1, articl2]
+  [article1, article2]
 
 =end
 
@@ -1356,15 +1350,15 @@ result
       end
       next if skip_user
 
-      # send notifications only to email adresses
+      # send notifications only to email addresses
       next if recipient_email.blank?
-      next if recipient_email !~ /@/
 
       # check if address is valid
       begin
         Mail::AddressList.new(recipient_email).addresses.each do |address|
           recipient_email = address.address
-          break if recipient_email.present? && recipient_email =~ /@/ && !recipient_email.match?(/\s/)
+          email_address_validation = EmailAddressValidation.new(recipient_email)
+          break if recipient_email.present? && email_address_validation.valid_format?
         end
       rescue
         if recipient_email.present?
@@ -1374,10 +1368,10 @@ result
 
           recipient_email = "#{$2}@#{$3}"
         end
-        next if recipient_email.blank?
-        next if recipient_email !~ /@/
-        next if recipient_email.match?(/\s/)
       end
+
+      email_address_validation = EmailAddressValidation.new(recipient_email)
+      next if !email_address_validation.valid_format?
 
       # do not sent notifications to this recipients
       send_no_auto_response_reg_exp = Setting.get('send_no_auto_response_reg_exp')

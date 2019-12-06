@@ -685,7 +685,6 @@ class CreateBase < ActiveRecord::Migration[4.2]
       t.references :stats_store_object,             null: false
       t.integer :o_id,                              null: false
       t.string  :key,                   limit: 250, null: true
-      t.integer :related_o_id,                      null: true
       t.integer :related_stats_store_object_id,     null: true
       t.string  :data,                 limit: 5000, null: true
       t.integer :created_by_id,                     null: false
@@ -716,5 +715,14 @@ class CreateBase < ActiveRecord::Migration[4.2]
     add_index :http_logs, [:created_at]
     add_foreign_key :http_logs, :users, column: :created_by_id
     add_foreign_key :http_logs, :users, column: :updated_by_id
+
+    create_table :active_job_locks do |t|
+      t.string :lock_key
+      t.string :active_job_id
+
+      t.timestamps
+    end
+    add_index :active_job_locks, :lock_key, unique: true
+    add_index :active_job_locks, :active_job_id, unique: true
   end
 end

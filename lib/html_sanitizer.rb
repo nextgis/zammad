@@ -25,7 +25,7 @@ satinize html string based on whiltelist
 
       # We whitelist yahoo_quoted because Yahoo Mail marks quoted email content using
       # <div class='yahoo_quoted'> and we rely on this class to identify quoted messages
-      classes_whitelist = ['js-signatureMarker', 'yahoo_quoted']
+      classes_whitelist = %w[js-signatureMarker yahoo_quoted]
       attributes_2_css = %w[width height]
 
       # remove html comments
@@ -168,7 +168,7 @@ satinize html string based on whiltelist
           next if !node[attribute_name]
 
           href = cleanup_target(node[attribute_name])
-          next if href !~ /(javascript|livescript|vbscript):/i
+          next if !href.match?(/(javascript|livescript|vbscript):/i)
 
           node.delete(attribute_name)
         end

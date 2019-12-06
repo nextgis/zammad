@@ -79,6 +79,18 @@ namespace :searchindex do
       pipeline = "zammad#{rand(999_999_999_999)}"
       Setting.set('es_pipeline', pipeline)
     end
+
+    # define pipeline_field_attributes
+    # ES 5.6 and nower has no ignore_missing support
+    pipeline_field_attributes = {
+      ignore_failure: true,
+    }
+    if es_multi_index?
+      pipeline_field_attributes = {
+        ignore_failure: true,
+        ignore_missing: true,
+      }
+    end
     print 'create pipeline (pipeline)... '
     SearchIndexBackend.processors(
       "_ingest/pipeline/#{pipeline}": [
@@ -91,22 +103,19 @@ namespace :searchindex do
           processors:  [
             {
               foreach: {
-                field:          'article',
-                ignore_failure: true,
-                processor:      {
+                field:     'article',
+                processor: {
                   foreach: {
-                    field:          '_ingest._value.attachment',
-                    ignore_failure: true,
-                    processor:      {
+                    field:     '_ingest._value.attachment',
+                    processor: {
                       attachment: {
-                        target_field:   '_ingest._value',
-                        field:          '_ingest._value._content',
-                        ignore_failure: true,
-                      }
+                        target_field: '_ingest._value',
+                        field:        '_ingest._value._content',
+                      }.merge(pipeline_field_attributes),
                     }
-                  }
+                  }.merge(pipeline_field_attributes),
                 }
-              }
+              }.merge(pipeline_field_attributes),
             }
           ]
         }
@@ -145,6 +154,12 @@ namespace :searchindex do
       puts "  - took #{took.to_i} seconds"
     end
 
+  end
+
+  task :refresh, [:opts] => :environment do |_t, _args|
+    print 'refresh all indexes...'
+
+    SearchIndexBackend.refresh
   end
 
   task :rebuild, [:opts] => :environment do |_t, _args|
@@ -191,7 +206,7 @@ def get_mapping_properties_object(object)
 
   # for elasticsearch 6.x and later
   string_type = 'text'
-  string_raw  = { 'type': 'keyword' }
+  string_raw  = { 'type': 'keyword', 'ignore_above': 5012 }
   boolean_raw = { 'type': 'boolean' }
 
   # for elasticsearch 5.6 and lower
@@ -206,7 +221,7 @@ def get_mapping_properties_object(object)
       result[name][:properties][key] = {
         type:   string_type,
         fields: {
-          raw: string_raw,
+          keyword: string_raw,
         }
       }
     elsif value.type == :integer
@@ -221,7 +236,7 @@ def get_mapping_properties_object(object)
       result[name][:properties][key] = {
         type:   'boolean',
         fields: {
-          raw: boolean_raw,
+          keyword: boolean_raw,
         }
       }
     elsif value.type == :binary
@@ -275,29 +290,31 @@ end
 
 # get es version
 def es_version
-  info = SearchIndexBackend.info
-  number = nil
-  if info.present?
-    number = info['version']['number'].to_s
+  @es_version ||= begin
+    info = SearchIndexBackend.info
+    number = nil
+    if info.present?
+      number = info['version']['number'].to_s
+    end
+    number
   end
-  number
 end
 
 # no es_pipeline for elasticsearch 5.5 and lower
 def es_pipeline?
   number = es_version
   return false if number.blank?
-  return false if number =~ /^[2-4]\./
-  return false if number =~ /^5\.[0-5]\./
+  return false if number.match?(/^[2-4]\./)
+  return false if number.match?(/^5\.[0-5]\./)
 
   true
 end
 
-# no mulit index for elasticsearch 5.6 and lower
+# no multi index for elasticsearch 5.6 and lower
 def es_multi_index?
   number = es_version
   return false if number.blank?
-  return false if number =~ /^[2-5]\./
+  return false if number.match?(/^[2-5]\./)
 
   true
 end
@@ -306,7 +323,7 @@ end
 def es_type_in_mapping?
   number = es_version
   return true if number.blank?
-  return true if number =~ /^[2-6]\./
+  return true if number.match?(/^[2-6]\./)
 
   false
 end

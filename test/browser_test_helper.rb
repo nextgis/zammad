@@ -1179,7 +1179,7 @@ set type of task (closeTab, closeNextInOverview, stayOnTab)
     cookies = instance.manage.all_cookies
     cookies.each do |cookie|
       # :name=>"_zammad_session_c25832f4de2", :value=>"adc31cd21615cb0a7ab269184ec8b76f", :path=>"/", :domain=>"localhost", :expires=>nil, :secure=>false}
-      next if cookie[:name] !~ /#{params[:name]}/i
+      next if !cookie[:name].match?(/#{params[:name]}/i)
 
       if params.key?(:value) && cookie[:value].to_s =~ /#{params[:value]}/i
         assert(true, "matching value '#{params[:value]}' in cookie '#{cookie}'")
@@ -2525,6 +2525,8 @@ wait untill text in selector disabppears
       end
     end
 
+    # avoid accessing a stale element when accessing task type
+    sleep 1
     task_type(
       browser: instance,
       type:    params[:task_type] || 'stayOnTab',
@@ -2663,7 +2665,14 @@ wait untill text in selector disabppears
            end
 
     # switch to overview
-    instance.find_elements(css: ".content.active .sidebar a[href=\"#{link}\"]")[0].click
+    element = nil
+    6.times do
+      element = instance.find_elements(css: ".content.active .sidebar a[href=\"#{link}\"]")[0]
+      break if element
+
+      sleep 1
+    end
+    element.click
 
     # hide larger overview selection list again
     sleep 0.5
@@ -2698,14 +2707,27 @@ wait untill text in selector disabppears
 
     overview_open(params)
 
+    element = nil
     if params[:title]
-      element = instance.find_element(css: '.content.active').find_element(partial_link_text: params[:title])
+      6.times do
+        element = instance.find_element(css: '.content.active').find_element(partial_link_text: params[:title])
+        break if element
+
+        sleep 1
+      end
       if !element
         screenshot(browser: instance, comment: 'ticket_open_by_overview_no_ticket_failed')
         raise "unable to find ticket #{params[:title]} in overview #{params[:link]}!"
       end
     else
-      element = instance.find_elements(partial_link_text: params[:number])[0]
+      6.times do
+
+        # prefere find_elements ofer find_element because of exception handling
+        element = instance.find_elements(partial_link_text: params[:number])[0]
+        break if element
+
+        sleep 1
+      end
       if !element
         screenshot(browser: instance, comment: 'ticket_open_by_overview_no_ticket_failed')
         raise "unable to find ticket #{params[:number]} in overview #{params[:link]}!"
@@ -2713,7 +2735,7 @@ wait untill text in selector disabppears
     end
     element.click
     sleep 1
-    number = instance.find_elements(css: '.content.active .ticketZoom-header .ticket-number')[0].text
+    number = instance.find_element(css: '.content.active .ticketZoom-header .ticket-number').text
     if !number.match?(/#{params[:number]}/)
       screenshot(browser: instance, comment: 'ticket_open_by_overview_open_failed_failed')
       raise "unable to open ticket #{params[:number]}!"

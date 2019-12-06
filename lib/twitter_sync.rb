@@ -698,7 +698,7 @@ process webhook messages from twitter
           channel.options[:sync][:search].each do |local_search|
             next if local_search[:term].blank?
             next if local_search[:group_id].blank?
-            next if item['text'] !~ /#{Regexp.quote(local_search[:term])}/i
+            next if !item['text'].match?(/#{Regexp.quote(local_search[:term])}/i)
 
             group_id = local_search[:group_id]
             break
@@ -909,11 +909,11 @@ get all webhooks
 delete a webhooks
 
   client = TwitterSync.new
-  webhook_delete(webhook_id)
+  webhook_delete(webhook_id, env_name)
 
 =end
 
-  def webhook_delete(webhook_id)
+  def webhook_delete(webhook_id, env_name)
     Twitter::REST::Request.new(@client, :delete, "/1.1/account_activity/all/#{env_name}/webhooks/#{webhook_id}.json", {}).perform
   end
 

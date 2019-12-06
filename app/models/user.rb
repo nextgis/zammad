@@ -333,27 +333,6 @@ returns
 
 =begin
 
-authenticate user agains sso
-
-  result = User.sso(sso_params)
-
-returns
-
-  result = user_model # user model if authentication was successfully
-
-=end
-
-  def self.sso(params)
-
-    # try to login against configure auth backends
-    user_auth = Sso.check(params)
-    return if !user_auth
-
-    user_auth
-  end
-
-=begin
-
 create user from from omni auth hash
 
   result = User.create_from_hash!(hash)
@@ -725,7 +704,7 @@ returns
     # to prevent any unexpected regressions.)
     User.find(user_id_of_duplicate_user)
 
-    # merge missing attibutes
+    # merge missing attributes
     Models.merge('User', id, user_id_of_duplicate_user)
 
     true
@@ -759,7 +738,7 @@ returns
 
 =begin
 
-update/sync default preferences of users in a dedecated permissions
+update/sync default preferences of users with dedicated permissions
 
   result = User.update_default_preferences_by_permission('ticket.agent', force)
 
@@ -796,7 +775,7 @@ returns
 
 =begin
 
-update/sync default preferences of users in a dedecated role
+update/sync default preferences of users in a dedicated role
 
   result = User.update_default_preferences_by_role('Agent', force)
 
@@ -980,8 +959,11 @@ try to find correct name
 
     self.email = email.downcase.strip
     return true if id == 1
-    raise Exceptions::UnprocessableEntity, 'Invalid email' if email !~ /@/
-    raise Exceptions::UnprocessableEntity, 'Invalid email' if email.match?(/\s/)
+
+    email_address_validation = EmailAddressValidation.new(email)
+    if !email_address_validation.valid_format?
+      raise Exceptions::UnprocessableEntity, 'Invalid email'
+    end
 
     true
   end
@@ -1203,7 +1185,10 @@ raise 'Minimum one user need to have admin permissions'
   def avatar_for_email_check
     return true if Setting.get('import_mode')
     return true if email.blank?
-    return true if email !~ /@/
+
+    email_address_validation = EmailAddressValidation.new(email)
+    return true if !email_address_validation.valid_format?
+
     return true if !saved_change_to_attribute?('email') && updated_at > Time.zone.now - 10.days
 
     # save/update avatar
@@ -1254,7 +1239,7 @@ raise 'Minimum one user need to have admin permissions'
     # don't permit empty password update for existing users
     return password_was if password.blank?
 
-    # don't re-hash an already hashed passsword
+    # don't re-hash passwords
     return password if PasswordHash.crypted?(password)
 
     # hash the plaintext password

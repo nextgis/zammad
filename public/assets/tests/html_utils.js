@@ -1281,6 +1281,21 @@ test("check check attachment reference", function() {
   result = 'Enclosed'
   verify = App.Utils.checkAttachmentReference(message)
   equal(verify, result)
+
+  message = '<div>Hi Test,</div><div><blockquote>On Monday, 22 July 2019, 14:07:54, Test User wrote:<br><br>Test attachment <br></blockquote></div>'
+  result = false
+  verify = App.Utils.checkAttachmentReference(message)
+  equal(verify, result)
+
+  message = '<div>Hi Test,</div><div><blockquote type="cite">cite attachment </blockquote></div>'
+  result = false
+  verify = App.Utils.checkAttachmentReference(message)
+  equal(verify, result)
+
+  message = '<div>Hi Test,</div><div><blockquote class="ecxgmail_quote">ecxgmail_quote attachment </blockquote></div>'
+  result = false
+  verify = App.Utils.checkAttachmentReference(message)
+  equal(verify, result)
 });
 
 // replace tags
@@ -1410,7 +1425,7 @@ test("check replace tags", function() {
 
   user = new App.User({
     firstname: 'Bob',
-    lastname: 'Smith',
+    lastname: 'Smith Good',
     created_at: '2018-10-31T10:00:00Z',
   })
   message = "<div>#{user.firstname} #{user.created_at}</div>"
@@ -1435,6 +1450,14 @@ test("check replace tags", function() {
     user: user
   }
   verify = App.Utils.replaceTags(message, data)
+  equal(verify, result)
+
+  message = "<a href=\"https://example.co/q=#{user.lastname}\">some text</a>"
+  result  = '<a href=\"https://example.co/q=Smith%20Good\">some text</a>'
+  data    = {
+    user: user
+  }
+  verify = App.Utils.replaceTags(message, data, true)
   equal(verify, result)
 });
 
@@ -3144,8 +3167,15 @@ test("htmlImage2DataUrl", function() {
   result = App.Utils.htmlImage2DataUrl(source)
   equal(result, should, source)
 
+  // GitHub issue #2305
   source = '<img src="cid:1234">some test'
   should = '<img src="cid:1234">some test'
+  result = App.Utils.htmlImage2DataUrl(source)
+  equal(result, should, source)
+
+  // GitHub issue #2701
+  source = '<img alt="foo">some test'
+  should = '<img alt="foo">some test'
   result = App.Utils.htmlImage2DataUrl(source)
   equal(result, should, source)
 

@@ -40,7 +40,7 @@ RSpec.describe Channel::EmailParser, type: :model do
     describe 'auto-creating new users' do
       context 'with one unrecognized email address' do
         it 'creates one new user' do
-          expect { Channel::EmailParser.new.process({}, <<~RAW) }.to change(User, :count).by(1)
+          expect { described_class.new.process({}, <<~RAW) }.to change(User, :count).by(1)
             From: #{Faker::Internet.unique.email}
           RAW
         end
@@ -48,7 +48,7 @@ RSpec.describe Channel::EmailParser, type: :model do
 
       context 'with a large number of unrecognized recipient addresses' do
         it 'never creates more than 40 users' do
-          expect { Channel::EmailParser.new.process({}, <<~RAW) }.to change(User, :count).by(40)
+          expect { described_class.new.process({}, <<~RAW) }.to change(User, :count).by(40)
             From: nicole.braun@zammad.org
             To: #{Array.new(20) { Faker::Internet.unique.email }.join(', ')}
             Cc: #{Array.new(21) { Faker::Internet.unique.email }.join(', ')}
@@ -59,7 +59,7 @@ RSpec.describe Channel::EmailParser, type: :model do
 
     describe 'auto-updating existing users' do
       context 'with a previous email with no real name in the From: header' do
-        let!(:customer) { Channel::EmailParser.new.process({}, previous_email).first.customer }
+        let!(:customer) { described_class.new.process({}, previous_email).first.customer }
 
         let(:previous_email) { <<~RAW.chomp }
           From: customer@example.com
@@ -79,7 +79,7 @@ RSpec.describe Channel::EmailParser, type: :model do
           RAW
 
           it 'updates the customer’s #firstname and #lastname' do
-            expect { Channel::EmailParser.new.process({}, new_email) }
+            expect { described_class.new.process({}, new_email) }
               .to change { customer.reload.firstname }.from('').to('Max')
               .and change { customer.reload.lastname }.from('').to('Smith')
           end
@@ -98,19 +98,19 @@ RSpec.describe Channel::EmailParser, type: :model do
         RAW
 
         it 'creates a ticket and article' do
-          expect { Channel::EmailParser.new.process({}, raw_mail) }
+          expect { described_class.new.process({}, raw_mail) }
             .to change(Ticket, :count).by(1)
             .and change(Ticket::Article, :count).by_at_least(1)
         end
 
         it 'sets #title to email subject' do
-          Channel::EmailParser.new.process({}, raw_mail)
+          described_class.new.process({}, raw_mail)
 
           expect(Ticket.last.title).to eq('Foo')
         end
 
         it 'sets #state to "new"' do
-          Channel::EmailParser.new.process({}, raw_mail)
+          described_class.new.process({}, raw_mail)
 
           expect(Ticket.last.state.name).to eq('new')
         end
@@ -119,13 +119,13 @@ RSpec.describe Channel::EmailParser, type: :model do
           let!(:agent) { create(:agent_user, email: 'foo@bar.com') }
 
           it 'sets article.sender to "Agent"' do
-            Channel::EmailParser.new.process({}, raw_mail)
+            described_class.new.process({}, raw_mail)
 
             expect(Ticket::Article.last.sender.name).to eq('Agent')
           end
 
           it 'sets ticket.state to "new"' do
-            Channel::EmailParser.new.process({}, raw_mail)
+            described_class.new.process({}, raw_mail)
 
             expect(Ticket.last.state.name).to eq('new')
           end
@@ -135,13 +135,13 @@ RSpec.describe Channel::EmailParser, type: :model do
           let!(:customer) { create(:customer_user, email: 'foo@bar.com') }
 
           it 'sets article.sender to "Customer"' do
-            Channel::EmailParser.new.process({}, raw_mail)
+            described_class.new.process({}, raw_mail)
 
             expect(Ticket.last.articles.first.sender.name).to eq('Customer')
           end
 
           it 'sets ticket.state to "new"' do
-            Channel::EmailParser.new.process({}, raw_mail)
+            described_class.new.process({}, raw_mail)
 
             expect(Ticket.last.state.name).to eq('new')
           end
@@ -149,7 +149,7 @@ RSpec.describe Channel::EmailParser, type: :model do
 
         context 'when from address is unrecognized' do
           it 'sets article.sender to "Customer"' do
-            Channel::EmailParser.new.process({}, raw_mail)
+            described_class.new.process({}, raw_mail)
 
             expect(Ticket.last.articles.first.sender.name).to eq('Customer')
           end
@@ -825,7 +825,7 @@ RSpec.describe Channel::EmailParser, type: :model do
 
       context 'when "postmaster_sender_is_agent_search_for_customer" setting is true (default)' do
         it 'sets ticket.customer to user with To: email' do
-          expect { Channel::EmailParser.new.process({}, raw_mail) }
+          expect { described_class.new.process({}, raw_mail) }
             .to change(Ticket, :count).by(1)
 
           expect(Ticket.last.customer).to eq(customer)
@@ -836,7 +836,7 @@ RSpec.describe Channel::EmailParser, type: :model do
         before { Setting.set('postmaster_sender_is_agent_search_for_customer', false) }
 
         it 'sets ticket.customer to user with To: email' do
-          expect { Channel::EmailParser.new.process({}, raw_mail) }
+          expect { described_class.new.process({}, raw_mail) }
             .to change(Ticket, :count).by(1)
 
           expect(Ticket.last.customer).to eq(agent)
@@ -943,6 +943,18 @@ RSpec.describe Channel::EmailParser, type: :model do
             .not_to raise_error
         end
       end
+
+      context 'when attachment for follow up check contains invalid charsets (#2808)' do
+        let(:mail_file) { Rails.root.join('test', 'data', 'mail', 'mail085.box') }
+
+        before { Setting.set('postmaster_follow_up_search_in', %w[attachment body]) }
+
+        it 'does not raise Encoding::CompatibilityError:' do
+          expect { described_class.new.process({}, raw_mail) }
+            .not_to raise_error
+        end
+      end
+
     end
 
     describe 'attachment handling' do
@@ -1020,23 +1032,23 @@ RSpec.describe Channel::EmailParser, type: :model do
           before { ticket.update(state: Ticket::State.find_by(name: 'closed')) }
 
           it 'sets #preferences on resulting ticket to { "send-auto-responses" => false, "is-auto-reponse" => true }' do
-            article = Channel::EmailParser.new.process({}, raw_mail).second
+            article = described_class.new.process({}, raw_mail).second
             expect(article.preferences)
               .to include('send-auto-response' => false, 'is-auto-response' => true)
           end
 
           it 'returns a Mail object with an x-zammad-out-of-office header' do
-            output_mail = Channel::EmailParser.new.process({}, raw_mail).last
+            output_mail = described_class.new.process({}, raw_mail).last
             expect(output_mail).to include('x-zammad-out-of-office': true)
           end
 
           it 'finds the article referenced in the bounce message headers, then adds the bounce message to its ticket' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .to change { ticket.articles.count }.by(1)
           end
 
           it 'does not re-open the ticket' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .not_to change { ticket.reload.state.name }.from('closed')
           end
         end
@@ -1047,18 +1059,18 @@ RSpec.describe Channel::EmailParser, type: :model do
 
         context 'for original message sent by Agent' do
           it 'sets #preferences on resulting ticket to { "send-auto-responses" => false, "is-auto-reponse" => true }' do
-            article = Channel::EmailParser.new.process({}, raw_mail).second
+            article = described_class.new.process({}, raw_mail).second
             expect(article.preferences)
               .to include('send-auto-response' => false, 'is-auto-response' => true)
           end
 
           it 'finds the article referenced in the bounce message headers, then adds the bounce message to its ticket' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .to change { ticket.articles.count }.by(1)
           end
 
           it 'does not alter the ticket state' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .not_to change { ticket.reload.state.name }.from('open')
           end
         end
@@ -1067,18 +1079,18 @@ RSpec.describe Channel::EmailParser, type: :model do
           let(:article) { create(:ticket_article, sender_name: 'Customer', message_id: message_id) }
 
           it 'sets #preferences on resulting ticket to { "send-auto-responses" => false, "is-auto-reponse" => true }' do
-            article = Channel::EmailParser.new.process({}, raw_mail).second
+            article = described_class.new.process({}, raw_mail).second
             expect(article.preferences)
               .to include('send-auto-response' => false, 'is-auto-response' => true)
           end
 
           it 'finds the article referenced in the bounce message headers, then adds the bounce message to its ticket' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .to change { ticket.articles.count }.by(1)
           end
 
           it 'does not alter the ticket state' do
-            expect { Channel::EmailParser.new.process({}, raw_mail) }
+            expect { described_class.new.process({}, raw_mail) }
               .not_to change { ticket.reload.state.name }.from('new')
           end
         end
@@ -1088,12 +1100,12 @@ RSpec.describe Channel::EmailParser, type: :model do
         let(:mail_file) { Rails.root.join('test', 'data', 'mail', 'mail055.box') }
 
         it 'finds the article referenced in the bounce message headers, then adds the bounce message to its ticket' do
-          expect { Channel::EmailParser.new.process({}, raw_mail) }
+          expect { described_class.new.process({}, raw_mail) }
             .to change { ticket.articles.count }.by(1)
         end
 
         it 'does not alter the ticket state' do
-          expect { Channel::EmailParser.new.process({}, raw_mail) }
+          expect { described_class.new.process({}, raw_mail) }
             .not_to change { ticket.reload.state.name }.from('open')
         end
       end
@@ -1163,6 +1175,126 @@ RSpec.describe Channel::EmailParser, type: :model do
 
             Some Text
           RAW
+        end
+      end
+    end
+  end
+
+  describe '#compose_postmaster_reply' do
+    let(:raw_incoming_mail) { File.read(Rails.root.join('test', 'data', 'mail', 'mail010.box')) }
+
+    shared_examples 'postmaster reply' do
+      it 'composes postmaster reply' do
+        reply = described_class.new.send(:compose_postmaster_reply, raw_incoming_mail, locale)
+        expect(reply[:to]).to eq('smith@example.com')
+        expect(reply[:content_type]).to eq('text/plain')
+        expect(reply[:subject]).to eq(expected_subject)
+        expect(reply[:body]).to eq(expected_body)
+      end
+    end
+
+    context 'for English locale (en)' do
+      include_examples 'postmaster reply' do
+        let(:locale) { 'en' }
+        let(:expected_subject) { '[undeliverable] Message too large' }
+        let(:expected_body) do
+          body = <<~BODY
+            Dear Smith Sepp,
+
+            Unfortunately your email titled \"Gruß aus Oberalteich\" could not be delivered to one or more recipients.
+
+            Your message was 0.01 MB but we only accept messages up to 10 MB.
+
+            Please reduce the message size and try again. Thank you for your understanding.
+
+            Regretfully,
+
+            Postmaster of zammad.example.com
+          BODY
+          body.gsub(/\n/, "\r\n")
+        end
+      end
+    end
+
+    context 'for German locale (de)' do
+      include_examples 'postmaster reply' do
+        let(:locale) { 'de' }
+        let(:expected_subject) { '[Unzustellbar] Nachricht zu groß' }
+        let(:expected_body) do
+          body = <<~BODY
+            Hallo Smith Sepp,
+
+            Ihre E-Mail mit dem Betreff \"Gruß aus Oberalteich\" konnte nicht an einen oder mehrere Empfänger zugestellt werden.
+
+            Die Nachricht hatte eine Größe von 0.01 MB, wir akzeptieren jedoch nur E-Mails mit einer Größe von bis zu 10 MB.
+
+            Bitte reduzieren Sie die Größe Ihrer Nachricht und versuchen Sie es erneut. Vielen Dank für Ihr Verständnis.
+
+            Mit freundlichen Grüßen
+
+            Postmaster von zammad.example.com
+          BODY
+          body.gsub(/\n/, "\r\n")
+        end
+      end
+    end
+  end
+
+  describe '#compose_postmaster_reply' do
+    let(:raw_incoming_mail) { File.read(Rails.root.join('test', 'data', 'mail', 'mail010.box')) }
+
+    shared_examples 'postmaster reply' do
+      it 'composes postmaster reply' do
+        reply = described_class.new.send(:compose_postmaster_reply, raw_incoming_mail, locale)
+        expect(reply[:to]).to eq('smith@example.com')
+        expect(reply[:content_type]).to eq('text/plain')
+        expect(reply[:subject]).to eq(expected_subject)
+        expect(reply[:body]).to eq(expected_body)
+      end
+    end
+
+    context 'for English locale (en)' do
+      include_examples 'postmaster reply' do
+        let(:locale) { 'en' }
+        let(:expected_subject) { '[undeliverable] Message too large' }
+        let(:expected_body) do
+          body = <<~BODY
+            Dear Smith Sepp,
+
+            Unfortunately your email titled \"Gruß aus Oberalteich\" could not be delivered to one or more recipients.
+
+            Your message was 0.01 MB but we only accept messages up to 10 MB.
+
+            Please reduce the message size and try again. Thank you for your understanding.
+
+            Regretfully,
+
+            Postmaster of zammad.example.com
+          BODY
+          body.gsub(/\n/, "\r\n")
+        end
+      end
+    end
+
+    context 'for German locale (de)' do
+      include_examples 'postmaster reply' do
+        let(:locale) { 'de' }
+        let(:expected_subject) { '[Unzustellbar] Nachricht zu groß' }
+        let(:expected_body) do
+          body = <<~BODY
+            Hallo Smith Sepp,
+
+            Ihre E-Mail mit dem Betreff \"Gruß aus Oberalteich\" konnte nicht an einen oder mehrere Empfänger zugestellt werden.
+
+            Die Nachricht hatte eine Größe von 0.01 MB, wir akzeptieren jedoch nur E-Mails mit einer Größe von bis zu 10 MB.
+
+            Bitte reduzieren Sie die Größe Ihrer Nachricht und versuchen Sie es erneut. Vielen Dank für Ihr Verständnis.
+
+            Mit freundlichen Grüßen
+
+            Postmaster von zammad.example.com
+          BODY
+          body.gsub(/\n/, "\r\n")
         end
       end
     end

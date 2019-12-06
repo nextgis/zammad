@@ -847,7 +847,7 @@ class TicketZoomRef extends App.ControllerContent
     if highlights = localStorage['highlights']
       @highlighter.deserialize localStorage['highlights']
 
-  # the serialization creates one string for the entiery ticket
+  # the serialization creates one string for the entire ticket
   # containing the offsets and the highlight classes
   #
   # we have to check how it works with having open several tickets – it might break
@@ -1619,12 +1619,38 @@ App.Config.set( 'layout_ref/calendar_subscriptions', CalendarSubscriptionsRef, '
 
 class ButtonsRef extends App.ControllerContent
 
+  elements:
+    '.js-submitDropdown': 'buttonDropdown'
+
+  events:
+    'click .js-openDropdown':        'toggleMenu'
+    'mouseenter .js-dropdownAction': 'onActionMouseEnter'
+    'mouseleave .js-dropdownAction': 'onActionMouseLeave'
+
   constructor: ->
     super
     @render()
 
   render: ->
     @html App.view('layout_ref/buttons')
+
+  toggleMenu: =>
+    if @buttonDropdown.hasClass('is-open')
+      @closeMenu()
+      return
+    @openMenu()
+
+  closeMenu: =>
+    @buttonDropdown.removeClass 'is-open'
+
+  openMenu: =>
+    @buttonDropdown.addClass 'is-open'
+
+  onActionMouseEnter: (e) =>
+    @$(e.currentTarget).addClass('is-active')
+
+  onActionMouseLeave: (e) =>
+    @$(e.currentTarget).removeClass('is-active')
 
 App.Config.set( 'layout_ref/buttons', ButtonsRef, 'Routes' )
 

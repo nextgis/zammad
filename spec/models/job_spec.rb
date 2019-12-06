@@ -37,7 +37,7 @@ RSpec.describe Job, type: :model do
       end
 
       it 'runs all executable jobs (and no others)' do
-        expect { Job.run }
+        expect { described_class.run }
           .to change { executable_jobs.map(&:reload).map(&:last_run_at).any?(&:nil?) }.to(false)
           .and not_change { nonexecutable_jobs.map(&:reload).map(&:last_run_at).all?(&:nil?) }
       end
@@ -200,6 +200,35 @@ RSpec.describe Job, type: :model do
             end
           end
         end
+      end
+
+      context 'when job has pre_condition:current_user.id in selector' do
+        let!(:matching_ticket) { create(:ticket, owner_id: 1) }
+        let!(:nonmatching_ticket) { create(:ticket, owner_id: create(:agent_user).id) }
+
+        let(:condition) do
+          {
+            'ticket.owner_id' => {
+              'operator'         => 'is',
+              'pre_condition'    => 'current_user.id',
+              'value'            => '',
+              'value_completion' => ''
+            },
+          }
+        end
+
+        before do
+          UserInfo.current_user_id = create(:admin_user).id
+          job
+          UserInfo.current_user_id = nil
+        end
+
+        it 'performs changes on matching tickets' do
+          expect { job.run(true) }
+            .to change { matching_ticket.reload.state }
+            .and not_change { nonmatching_ticket.reload.state }
+        end
+
       end
     end
 

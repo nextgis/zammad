@@ -97,18 +97,19 @@ class TicketsController < ApplicationController
 
     # try to create customer if needed
     if clean_params[:customer_id].present? && clean_params[:customer_id] =~ /^guess:(.+?)$/
-      email = $1
-      if email !~ /@/ || email =~ /(>|<|\||\!|"|§|'|\$|%|&|\(|\)|\?|\s)/
+      email_address = $1
+      email_address_validation = EmailAddressValidation.new(email_address)
+      if !email_address_validation.valid_format?
         render json: { error: 'Invalid email of customer' }, status: :unprocessable_entity
         return
       end
-      local_customer = User.find_by(email: email.downcase)
+      local_customer = User.find_by(email: email_address.downcase)
       if !local_customer
         role_ids = Role.signup_role_ids
         local_customer = User.create(
           firstname: '',
           lastname:  '',
-          email:     email,
+          email:     email_address,
           password:  '',
           active:    true,
           role_ids:  role_ids,
@@ -675,7 +676,7 @@ class TicketsController < ApplicationController
     return true if ticket.group.follow_up_possible != 'new_ticket' # check if the setting for follow_up_possible is disabled
     return true if ticket.state.name != 'closed' # check if the ticket state is already closed
 
-    raise Exceptions::UnprocessableEntity, 'Cannot follow up on a closed ticket. Please create a new ticket.'
+    raise Exceptions::UnprocessableEntity, 'Cannot follow-up on a closed ticket. Please create a new ticket.'
   end
 
   def ticket_all(ticket)

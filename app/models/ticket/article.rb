@@ -69,7 +69,7 @@ returns
 
   def self.insert_urls(article)
     return article if article['attachments'].blank?
-    return article if article['content_type'] !~ %r{text/html}i
+    return article if !article['content_type'].match?(%r{text/html}i)
     return article if article['body'] !~ /<img/i
 
     inline_attachments = {}
@@ -411,18 +411,5 @@ returns
       object: 'Ticket::Article::Mail',
       o_id:   id,
     )
-  end
-
-  class Flag < ApplicationModel
-  end
-
-  class Sender < ApplicationModel
-    include ChecksLatestChangeObserved
-    validates :name, presence: true
-  end
-
-  class Type < ApplicationModel
-    include ChecksLatestChangeObserved
-    validates :name, presence: true
   end
 end

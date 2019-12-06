@@ -51,7 +51,7 @@ class Transaction::Notification
     recipients_reason = {}
 
     # loop through all users
-    possible_recipients = User.group_access(ticket.group_id, 'full').sort_by(&:login)
+    possible_recipients = possible_recipients_of_group(ticket.group_id)
 
     # apply owner
     if ticket.owner_id != 1
@@ -112,10 +112,10 @@ class Transaction::Notification
           identifier = user.login
         end
         already_notified = false
-        History.list('Ticket', ticket.id).each do |history|
+        History.list('Ticket', ticket.id, nil, nil, ['created_at > ?', [Time.zone.now - 2.days]]).each do |history|
           next if history['type'] != 'notification'
-          next if history['value_to'] !~ /\(#{Regexp.escape(@item[:type])}:/
-          next if history['value_to'] !~ /#{Regexp.escape(identifier)}\(/
+          next if !history['value_to'].match?(/\(#{Regexp.escape(@item[:type])}:/)
+          next if !history['value_to'].match?(/#{Regexp.escape(identifier)}\(/)
           next if !history['created_at'].today?
 
           already_notified = true
@@ -160,7 +160,7 @@ class Transaction::Notification
         Rails.logger.debug { "sent ticket online notifiaction to agent (#{@item[:type]}/#{ticket.id}/#{user.email})" }
       end
 
-      # ignore email channel notificaiton and empty emails
+      # ignore email channel notification and empty emails
       if !channels['email'] || !user.email || user.email == ''
         add_recipient_list(ticket, user, used_channels, @item[:type])
         next
@@ -270,7 +270,7 @@ class Transaction::Notification
         changes[attribute_name] = value
       end
 
-      # if changed item is an _id field/reference, do an lookup for the realy values
+      # if changed item is an _id field/reference, look up the real values
       value_id  = []
       value_str = [ value[0], value[1] ]
       if key.to_s[-3, 3] == '_id'
@@ -302,7 +302,7 @@ class Transaction::Notification
         end
       end
 
-      # check if we have an dedcated display name for it
+      # check if we have a dedicated display name for it
       display = attribute_name
       if object_manager_attribute && object_manager_attribute[:display]
 
@@ -347,4 +347,12 @@ class Transaction::Notification
     )
   end
 
+  def possible_recipients_of_group(group_id)
+    cache = Cache.get("Transaction::Notification.group_access.full::#{group_id}")
+    return cache if cache
+
+    possible_recipients = User.group_access(group_id, 'full').sort_by(&:login)
+    Cache.write("Transaction::Notification.group_access.full::#{group_id}", possible_recipients, expires_in: 20.seconds)
+    possible_recipients
+  end
 end

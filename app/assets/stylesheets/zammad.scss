@@ -889,6 +889,23 @@ pre code.hljs {
 
 .status-fields {
   display: flex;
+  max-width: 100%;
+  
+  .dropdown li {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  .dropdown-menu .status-badge {
+    margin-left: 10px;
+  }
+  
+  .dropdown-menu .badge {
+    margin-top: -2px;
+    margin-right: 7px;
+    background: hsla(0,0%,0%,.5);
+  }
 }
 
 .status-field {
@@ -896,20 +913,21 @@ pre code.hljs {
   border: 1px solid hsl(0,0%,90%);
   display: flex;
   height: 34px;
+  flex-shrink: 1;
+  min-width: 20px;
+  padding: 5px 0;
   align-items: center;
-  line-height: 35px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 
-  &.is-clickable {
+  &.is-active {
     background: hsl(203,65%,55%);
     color: white;
     border-color: hsl(203,65%,45%);
     box-shadow: 1px 0 hsl(203,65%,45%);
     position: relative;
     @extend %clickable;
-  }
-
-  &.is-blinking {
-    animation: pulsate 667ms ease-in-out infinite alternate;
   }
 
   &:not(:last-child):not(:only-child) {
@@ -919,6 +937,12 @@ pre code.hljs {
   &:first-child {
     border-radius: 5px 0 0 5px;
     @include rtl(border-radius, 0 5px 5px 0);
+    
+    .dropdown.open & {
+      border-radius: 5px 0 0 0;
+      
+      @include rtl(border-radius, 0 5px 0 0);
+    }
   }
 
   &:last-child {
@@ -931,7 +955,7 @@ pre code.hljs {
   }
 
   .badge {
-    @include bidi-style(margin, 0 5px 0 10px, margin, 0 10px 0 5px);
+    @include bidi-style(margin, 0 7px 0 10px, margin, 0 10px 0 7px);
     background: hsla(210,50%,10%,.24);
   }
 
@@ -941,6 +965,22 @@ pre code.hljs {
     align-items: center;
     justify-content: center;
     align-self: stretch;
+  }
+
+  &--arrow {
+    @extend %clickable;
+    border-left: none;
+    width: 34px;
+    justify-content: center;
+    
+    .icon {
+      fill: currentColor;
+    }
+  }
+
+  &--spacer {
+    padding-left: 16px;
+    padding-right: 2px;
   }
 }
 
@@ -2102,10 +2142,20 @@ input.has-error {
 
 .controls--button {
   display: flex;
+  flex-wrap: wrap;
+
+  .controls {
+    flex: 1;
+  } 
+  
+  .help-inline,
+  .help-block {
+    flex-basis: 100%;
+  }
 
   input,
   .form-control {
-    flex: 1;
+    flex: 1 1 0%;
     @include bidi-style(border-right-width, 0, border-left-width, 1px);
     @include bidi-style(border-top-right-radius, 0, border-top-left-radius, 3px);
     @include bidi-style(border-bottom-right-radius, 0, border-bottom-left-radius, 3px);
@@ -2154,6 +2204,14 @@ input.has-error {
   position: relative;
   border: 1px solid hsl(0, 0%, 90%);
   @include bidi-style(border-radius, 0 3px 3px 0, border-radius, 3px 0 0 3px);
+  
+  .icon {
+    fill: hsl(0,0%,61%);
+  }
+
+  &:hover .icon {
+    fill: hsl(0,0%,33%);
+  }
 }
 
 .searchfield {
@@ -2927,6 +2985,10 @@ ol.tabs li {
 
     .tab {
       flex: none;
+      
+      &:nth-last-child(2) {
+        @include bidi-style(border-right-width, 0, border-right-width, 1px);
+      }
     }
   }
 
@@ -3060,6 +3122,10 @@ ol.tabs li {
   }
 
   &.auth-provider--weibo {
+    background: hsl(0,0%,27%);
+  }
+
+  &.auth-provider--saml {
     background: hsl(0,0%,27%);
   }
 
@@ -4964,7 +5030,7 @@ footer {
 
   .stat-widget {
     height: 200px;
-    padding: 13px;
+    padding: 10px 10px 8px;
     text-align: center;
     line-height: 20px;
   }
@@ -5000,12 +5066,12 @@ footer {
       cursor: help;
     }
 
-    .stat-widget .stat-label {
+    .stat-label {
       color: #444a4f;
       @extend .u-textTruncate;
     }
 
-    .stat-widget .stat-detail {
+    .stat-detail {
       color: #b4b7b9;
       @extend .u-textTruncate;
     }
@@ -5042,11 +5108,16 @@ footer {
 
 .stats-row {
   padding: 8px 0 7px;
-  margin-bottom: -7px;
   border-radius: 3px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 0 1 38px;
+  height: 100%;
+
+  .icon {
+    display: block;
+  }
 }
 
 .stats-row:hover {
@@ -5054,28 +5125,30 @@ footer {
 }
 
   .stats-row .stat-bars {
-    height: 73px;
-    margin: 16px 0 15px;
-    padding: 2px 12px;
+    flex: 1;
+    margin: 10px 0 13px;
+    padding: 2px 5px;
     width: 100%;
     background: linear-gradient(to top, #f2f2f3, #f2f2f3 1px, transparent 1px);
     background-position: center bottom;
     background-size: 100% 12px;
     display: flex;
     align-items: flex-end;
+    justify-content: center;
   }
 
   .stat-bars .stat-bar {
     border-radius: 5px;
-    width: 10px;
+    max-width: 10px;
+    flex: 1;
     color: #a9bcc4;
     background: #a9bcc4;
-  }
 
-  .stat-widget .secondary {
-    opacity: .38;
-    color: #a9bcc4;
-    background: #a9bcc4;
+    &--outbound {
+      opacity: .38;
+      color: #a9bcc4;
+      background: #a9bcc4;
+    }
   }
 
   .stat-legend {
@@ -5099,6 +5172,17 @@ footer {
     border-radius: 100%;
     display: inline-block;
   }
+
+.ticket_channel_distribution {
+  .stat-graphic {
+    align-items: stretch;
+  }
+
+  .stats-row {
+    margin-bottom: -4px;
+    position: relative;
+  }
+}
 
 .frequency.stat-widget {
   .stat-bars {
@@ -7346,6 +7430,12 @@ footer {
 
   .dropdown-menu > li[disabled] {
     opacity: 0.33;
+    
+    &:hover,
+    &.is-active {
+      background: none;
+      cursor: default;
+    }
   }
 
   .dropdown-menu > li > a {
@@ -7364,7 +7454,7 @@ footer {
     display: block;
   }
 
-  .dropdown-menu .badge {
+  .dropdown-menu .badge--text {
     @include bidi-style(padding-left, 10px, padding-right, 0);
   }
 
@@ -10181,7 +10271,7 @@ output {
     }
 
     &-label {
-      width: 50%;
+      width:  80%;
       margin: 10px 0;
     }
   }

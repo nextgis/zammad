@@ -41,7 +41,7 @@ class App.ControllerForm extends App.Controller
     # Previously the handlers are called directly, before the DOM elements are ready, thereby causing a race condition under IE11.
     # Now we only dispatch the handlers after the DOM is ready.
     if @handlers.length
-      $(@dispatch_handlers)
+      $(@dispatchHandlers)
 
     # if element is given, prepend form to it
     if @el
@@ -57,7 +57,7 @@ class App.ControllerForm extends App.Controller
     @finishForm = true
     @form
 
-  dispatch_handlers: =>
+  dispatchHandlers: =>
     params = App.ControllerForm.params(@form)
     for attribute in @attributes
       for handler in @handlers
@@ -360,11 +360,16 @@ class App.ControllerForm extends App.Controller
 
       return item
     else
+      placeholderObjects = {}
+      if @model.className && !_.isEmpty(attribute.linktemplate) && !_.isEmpty(@params[attribute.name])
+        placeholderObjects = { attribute: attribute, session: App.Session.get(), config: App.Config.all() }
+        placeholderObjects[@model.className.toLowerCase()] = @params
       fullItem = $(
         App.view('generic/attribute')(
           attribute: attribute,
           item:      '',
           bookmarkable: @bookmarkable
+          placeholderObjects: placeholderObjects
         )
       )
       fullItem.find('.controls').prepend(item)
@@ -689,7 +694,7 @@ class App.ControllerForm extends App.Controller
       # set forms to read only during communication with backend
       lookupForm.find('button, input, select, textarea').prop('readonly', true)
 
-      # disable radio and checbkox buttons
+      # disable radio and checkbox buttons
       lookupForm.find('input[type=checkbox], input[type=radio]').prop('disabled', true)
 
       # disable additionals submits
@@ -714,7 +719,7 @@ class App.ControllerForm extends App.Controller
       # enable fields again
       lookupForm.find('button, input, select, textarea').prop('readonly', false)
 
-      # enable radio and checbkox buttons
+      # enable radio and checkbox buttons
       lookupForm.find('input[type=checkbox], input[type=radio]').prop('disabled', false)
 
       # enable submits again
